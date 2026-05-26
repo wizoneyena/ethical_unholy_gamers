@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warcraft Logs Aura Analytics Dashboard</title>
+    <title>Database</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
@@ -11,18 +11,27 @@
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         
         <div class="mb-8 border-b border-gray-800 pb-6">
-            <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Unholy Death Knight Aura Analytics</h1>
-            <p class="text-gray-400 mt-2">Search, filter, and sort across combat encounter performance metrics.</p>
+            <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Check if your UnholyDK buddy abused the bug :)</h1>
+            <p class="text-gray-400 mt-2">This page shows aggregated data in the time range of May 20 - 27. If someone shows up here it doesn't mean they abused the bug. This just helps you determine it.</p>
         </div>
 
         <div class="bg-gray-800 p-4 rounded-xl shadow-lg mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div class="w-full md:w-1/3 relative">
+            <div class="w-full md:w-1/2 flex gap-2">
                 <input 
                     type="text" 
                     id="searchBar" 
-                    placeholder="Search character name..." 
+                    placeholder="Type character name ..." 
                     class="w-full bg-gray-700 text-gray-100 placeholder-gray-400 px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-600 transition"
                 >
+                <button 
+                    id="findButton"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-lg transition active:scale-95 shadow-md flex items-center gap-1"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Find
+                </button>
             </div>
             <div class="text-sm text-gray-400 font-medium" id="recordCounter">
                 Loading dataset records...
@@ -38,13 +47,13 @@
                             <th class="px-6 py-4">Boss Name</th>
                             <th class="px-6 py-4">Report Link</th>
                             <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 hover:text-white transition group select-none" onclick="handleSort('starting_stacks')">
-                                Starting Stacks <span id="sort-starting_stacks" class="text-indigo-400 ml-1"></span>
+                                Starting Stacks <span id="sort-starting_stacks" class="text-indigo-400 ml-1">♢</span>
                             </th>
                             <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 hover:text-white transition group select-none" onclick="handleSort('average_stacks')">
-                                Avg Stacks <span id="sort-average_stacks" class="text-indigo-400 ml-1"></span>
+                                Avg Stacks <span id="sort-average_stacks" class="text-indigo-400 ml-1">♢</span>
                             </th>
                             <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 hover:text-white transition group select-none" onclick="handleSort('aura_uptime_pct')">
-                                Aura Uptime % <span id="sort-aura_uptime_pct" class="text-indigo-400 ml-1"></span>
+                                Aura Uptime % <span id="sort-aura_uptime_pct" class="text-indigo-400 ml-1">♢</span>
                             </th>
                         </tr>
                     </thead>
@@ -65,7 +74,6 @@
         let currentSortKey = '';
         let isAscending = false;
 
-
         async function loadDashboardData() {
             try {
                 const response = await fetch('data.json');
@@ -74,7 +82,7 @@
                 filteredDataset = [...fullDataset];
                 
                 renderTableRecords();
-                setupSearchListener();
+                setupSearchActions();
             } catch (error) {
                 console.error("Dashboard engine failure:", error);
                 document.getElementById('recordCounter').innerText = "Failed loading data profiles.";
@@ -99,7 +107,6 @@
             filteredDataset.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-700/50 transition duration-150";
-
                 const wclUrl = `https://www.warcraftlogs.com/reports/${row.report_code}`;
 
                 tr.innerHTML = `
@@ -123,20 +130,38 @@
         }
 
 
-        function setupSearchListener() {
+        function executeSearch() {
             const searchInput = document.getElementById('searchBar');
-            searchInput.addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase().trim();
-                
-                filteredDataset = fullDataset.filter(item => 
-                    item.character_name.toLowerCase().includes(query)
-                );
-                
+            
+            const query = searchInput.value.normalize("NFC").toLowerCase().trim();
+            
+            if (query === "") {
+                filteredDataset = [...fullDataset];
+            } else {
+                filteredDataset = fullDataset.filter(item => {
+                    if (!item.character_name) return false;
+                    
 
-                if (currentSortKey) {
-                    sortDataset(currentSortKey, false);
-                } else {
-                    renderTableRecords();
+                    const charName = item.character_name.normalize("NFC").toLowerCase();
+                    return charName.includes(query);
+                });
+            }
+
+            if (currentSortKey) {
+                sortDataset(currentSortKey, false);
+            }
+            
+            renderTableRecords();
+        }
+
+        function setupSearchActions() {
+            const findButton = document.getElementById('findButton');
+            const searchInput = document.getElementById('searchBar');
+
+            findButton.addEventListener('click', executeSearch);
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    executeSearch();
                 }
             });
         }
@@ -144,10 +169,10 @@
 
         function handleSort(key) {
             if (currentSortKey === key) {
-                isAscending = !isAscending; 
+                isAscending = !isAscending;
             } else {
                 currentSortKey = key;
-                isAscending = false;
+                isAscending = false; 
             }
             sortDataset(key, true);
         }
@@ -163,14 +188,13 @@
             if (shouldRender) renderTableRecords();
         }
 
-
         function updateSortGlyphs() {
             ['starting_stacks', 'average_stacks', 'aura_uptime_pct'].forEach(k => {
                 const indicator = document.getElementById(`sort-${k}`);
                 if (k === currentSortKey) {
                     indicator.innerText = isAscending ? '▲' : '▼';
                 } else {
-                    indicator.innerText = '♢'; 
+                    indicator.innerText = '♢';
                 }
             });
         }
