@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warcraft Logs Aura Analytics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        
+        <div class="mb-8 border-b border-gray-800 pb-6">
+            <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Unholy Death Knight Aura Analytics</h1>
+            <p class="text-gray-400 mt-2">Search, filter, and sort across combat encounter performance metrics.</p>
+        </div>
+
+        <div class="bg-gray-800 p-4 rounded-xl shadow-lg mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div class="w-full md:w-1/3 relative">
+                <input 
+                    type="text" 
+                    id="searchBar" 
+                    placeholder="Search character name..." 
+                    class="w-full bg-gray-700 text-gray-100 placeholder-gray-400 px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-600 transition"
+                >
+            </div>
+            <div class="text-sm text-gray-400 font-medium" id="recordCounter">
+                Loading dataset records...
+            </div>
+        </div>
+
+        <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-750 border-b border-gray-700 text-gray-300 text-xs uppercase tracking-wider font-semibold">
+                            <th class="px-6 py-4">Character & Realm</th>
+                            <th class="px-6 py-4">Boss Name</th>
+                            <th class="px-6 py-4">Report Link</th>
+                            <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 hover:text-white transition group select-none" onclick="handleSort('starting_stacks')">
+                                Starting Stacks <span id="sort-starting_stacks" class="text-indigo-400 ml-1"></span>
+                            </th>
+                            <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 hover:text-white transition group select-none" onclick="handleSort('average_stacks')">
+                                Avg Stacks <span id="sort-average_stacks" class="text-indigo-400 ml-1"></span>
+                            </th>
+                            <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 hover:text-white transition group select-none" onclick="handleSort('aura_uptime_pct')">
+                                Aura Uptime % <span id="sort-aura_uptime_pct" class="text-indigo-400 ml-1"></span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-gray-700 text-sm">
+                        </tbody>
+                </table>
+            </div>
+            
+            <div id="noDataMessage" class="hidden text-center py-12 text-gray-400 text-base">
+                No matching characters found in this log batch.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fullDataset = [];
+        let filteredDataset = [];
+        let currentSortKey = '';
+        let isAscending = false;
+
+
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('data.json');
+                if (!response.ok) throw new Error("Could not find database targets.");
+                fullDataset = await response.json();
+                filteredDataset = [...fullDataset];
+                
+                renderTableRecords();
+                setupSearchListener();
+            } catch (error) {
+                console.error("Dashboard engine failure:", error);
+                document.getElementById('recordCounter').innerText = "Failed loading data profiles.";
+            }
+        }
+
+        function renderTableRecords() {
+            const tbody = document.getElementById('tableBody');
+            const noData = document.getElementById('noDataMessage');
+            const counter = document.getElementById('recordCounter');
+            
+            tbody.innerHTML = '';
+            counter.innerText = `Showing ${filteredDataset.length} of ${fullDataset.length} entries`;
+
+            if (filteredDataset.length === 0) {
+                noData.classList.remove('hidden');
+                return;
+            } else {
+                noData.classList.add('hidden');
+            }
+
+            filteredDataset.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-700/50 transition duration-150";
+
+                const wclUrl = `https://www.warcraftlogs.com/reports/${row.report_code}`;
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-white">
+                        <div class="font-semibold">${row.character_name}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">${row.realm}</div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-300 font-medium">${row.boss_name}</td>
+                    <td class="px-6 py-4">
+                        <a href="${wclUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-xs font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 rounded border border-indigo-500/30 transition">
+                            ${row.report_code} 
+                            <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 text-gray-300 font-mono">${row.starting_stacks}</td>
+                    <td class="px-6 py-4 text-emerald-400 font-mono font-medium">${Number(row.average_stacks).toFixed(2)}</td>
+                    <td class="px-6 py-4 text-amber-400 font-mono font-semibold">${Number(row.aura_uptime_pct).toFixed(2)}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+
+        function setupSearchListener() {
+            const searchInput = document.getElementById('searchBar');
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                
+                filteredDataset = fullDataset.filter(item => 
+                    item.character_name.toLowerCase().includes(query)
+                );
+                
+
+                if (currentSortKey) {
+                    sortDataset(currentSortKey, false);
+                } else {
+                    renderTableRecords();
+                }
+            });
+        }
+
+
+        function handleSort(key) {
+            if (currentSortKey === key) {
+                isAscending = !isAscending; 
+            } else {
+                currentSortKey = key;
+                isAscending = false;
+            }
+            sortDataset(key, true);
+        }
+
+        function sortDataset(key, shouldRender) {
+            filteredDataset.sort((a, b) => {
+                let valA = Number(a[key]) || 0;
+                let valB = Number(b[key]) || 0;
+                return isAscending ? valA - valB : valB - valA;
+            });
+
+            updateSortGlyphs();
+            if (shouldRender) renderTableRecords();
+        }
+
+
+        function updateSortGlyphs() {
+            ['starting_stacks', 'average_stacks', 'aura_uptime_pct'].forEach(k => {
+                const indicator = document.getElementById(`sort-${k}`);
+                if (k === currentSortKey) {
+                    indicator.innerText = isAscending ? '▲' : '▼';
+                } else {
+                    indicator.innerText = '♢'; 
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadDashboardData);
+    </script>
+</body>
+</html>
