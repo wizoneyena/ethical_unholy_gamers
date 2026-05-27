@@ -24,8 +24,8 @@
 
     <div id="mainContent" class="hidden container mx-auto px-4 py-8 max-w-7xl">
         <div class="mb-8 border-b border-gray-800 pb-6">
-            <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Improve your gameplay by comparing your log to these absolute gamers</h1>
-<p class="text-gray-400 mt-2">Here you can view logs between May 20 - May 27 for Unholy DKs regarding forbidden ritual</p>
+            <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Those who know, know</h1>
+            <p class="text-gray-400 mt-2">Here you can view logs between May 20 - May 27 for Unholy DKs regarding Forbidden Ritual</p>
         </div>
 
         <div class="bg-gray-800 p-4 rounded-xl shadow-lg mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -52,6 +52,9 @@
                 </thead>
                 <tbody id="tableBody" class="divide-y divide-gray-700 text-sm"></tbody>
             </table>
+            <div id="noDataMessage" class="hidden text-center py-12 text-gray-400 text-base bg-gray-800">
+                No matching characters found in this log batch.
+            </div>
         </div>
     </div>
 
@@ -75,40 +78,101 @@
             }
         }
 
+        // Add Enter-key support for password page convenience
+        document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') checkPassword();
+        });
+
         let fullDataset = [], filteredDataset = [], currentSortKey = '', isAscending = false;
 
         async function loadDashboardData() {
-            const response = await fetch('data.json');
-            fullDataset = await response.json();
-            filteredDataset = [...fullDataset];
-            renderTableRecords();
+            try {
+                const response = await fetch('data.json');
+                fullDataset = await response.json();
+                filteredDataset = [...fullDataset];
+                renderTableRecords();
+                setupSearchActions();
+            } catch (error) {
+                console.error("Failed to load dataset:", error);
+                document.getElementById('recordCounter').innerText = "Failed loading profiles.";
+            }
         }
 
         function renderTableRecords() {
             const tbody = document.getElementById('tableBody');
+            const noData = document.getElementById('noDataMessage');
+            const counter = document.getElementById('recordCounter');
+            
             tbody.innerHTML = '';
+            counter.innerText = `Showing ${filteredDataset.length} of ${fullDataset.length} entries`;
+
+            if (filteredDataset.length === 0) {
+                noData.classList.remove('hidden');
+                return;
+            } else {
+                noData.classList.add('hidden');
+            }
+
             filteredDataset.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-700/50 transition";
+                
+                // Check if starting_stacks exists or if it's undefined/null
+                const displayStacks = (row.starting_stacks !== undefined && row.starting_stacks !== null) 
+                    ? row.starting_stacks 
+                    : '<span class="text-gray-500 font-semibold italic">N/A</span>';
+
                 tr.innerHTML = `
                     <td class="px-6 py-4"><div class="font-semibold text-white">${row.character_name}</div><div class="text-xs text-gray-400">${row.realm}</div></td>
                     <td class="px-6 py-4 text-gray-300">${row.boss_name}</td>
-                    <td class="px-6 py-4"><a href="https://www.warcraftlogs.com/reports/${row.report_code}" target="_blank" class="text-indigo-400">${row.report_code}</a></td>
-                    <td class="px-6 py-4 text-gray-300 font-mono">${row.starting_stacks}</td>
+                    <td class="px-6 py-4"><a href="https://www.warcraftlogs.com/reports/${row.report_code}" target="_blank" class="text-indigo-400 font-medium hover:underline">${row.report_code}</a></td>
+                    <td class="px-6 py-4 text-gray-300 font-mono">${displayStacks}</td>
                     <td class="px-6 py-4 text-amber-400 font-mono font-semibold">${Number(row.aura_uptime_pct).toFixed(2)}%</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
+        function executeSearch() {
+            const query = document.getElementById('searchBar').value.normalize("NFC").toLowerCase().trim();
+            if (query === "") {
+                filteredDataset = [...fullDataset];
+            } else {
+                filteredDataset = fullDataset.filter(item => 
+                    item.character_name && item.character_name.normalize("NFC").toLowerCase().includes(query)
+                );
+            }
+            if (currentSortKey) {
+                sortDataset(currentSortKey);
+            }
+            renderTableRecords();
+        }
+
+        function setupSearchActions() {
+            document.getElementById('findButton').addEventListener('click', executeSearch);
+            document.getElementById('searchBar').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') executeSearch();
+            });
+        }
+
         function handleSort(key) {
             isAscending = (currentSortKey === key) ? !isAscending : false;
             currentSortKey = key;
-            filteredDataset.sort((a, b) => isAscending ? (a[key] - b[key]) : (b[key] - a[key]));
+            sortDataset(key);
+            
             ['starting_stacks', 'aura_uptime_pct'].forEach(k => {
                 document.getElementById(`sort-${k}`).innerText = (k !== currentSortKey) ? '♢' : (isAscending ? '▲' : '▼');
             });
             renderTableRecords();
+        }
+
+        function sortDataset(key) {
+            filteredDataset.sort((a, b) => {
+                // Secure numerical evaluation formatting to ensure missing fields drop cleanly to bottom on descending sorts
+                let valA = a[key] !== undefined && a[key] !== null ? Number(a[key]) : -1;
+                let valB = b[key] !== undefined && b[key] !== null ? Number(b[key]) : -1;
+                return isAscending ? (valA - valB) : (valB - valA);
+            });
         }
     </script>
 </body>
