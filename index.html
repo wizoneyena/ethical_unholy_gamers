@@ -25,7 +25,7 @@
     <div id="mainContent" class="hidden container mx-auto px-4 py-8 max-w-7xl">
         <div class="mb-8 border-b border-gray-800 pb-6">
             <h1 class="text-3xl font-bold text-indigo-400 tracking-tight">Improve your gameplay by comparing your log to these absolute gamers</h1>
-            <p class="text-gray-400 mt-2">Here you can view logs between May 20 - May 27 for Unholy DKs regarding forbidden ritual</p>
+<p class="text-gray-400 mt-2">Here you can view logs between May 20 - May 27 for Unholy DKs regarding forbidden ritual</p>
         </div>
 
         <div class="bg-gray-800 p-4 rounded-xl shadow-lg mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -33,29 +33,25 @@
                 <input type="text" id="searchBar" placeholder="Type character name ..." 
                        class="w-full bg-gray-700 text-gray-100 placeholder-gray-400 px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-600 transition">
                 <button id="findButton" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-lg transition active:scale-95 shadow-md flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     Find
                 </button>
             </div>
-            <div class="text-sm text-gray-400 font-medium" id="recordCounter">Loading dataset records...</div>
+            <div class="text-sm text-gray-400 font-medium" id="recordCounter">Loading...</div>
         </div>
 
         <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-750 border-b border-gray-700 text-gray-300 text-xs uppercase tracking-wider font-semibold">
-                            <th class="px-6 py-4">Character & Realm</th>
-                            <th class="px-6 py-4">Boss Name</th>
-                            <th class="px-6 py-4">Report Link</th>
-                            <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 hover:text-white transition group select-none" onclick="handleSort('starting_stacks')">Starting Stacks <span id="sort-starting_stacks" class="text-indigo-400 ml-1">♢</span></th>
-                            <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 hover:text-white transition group select-none" onclick="handleSort('aura_uptime_pct')">Aura Uptime % <span id="sort-aura_uptime_pct" class="text-indigo-400 ml-1">♢</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="divide-y divide-gray-700 text-sm"></tbody>
-                </table>
-            </div>
-            <div id="noDataMessage" class="hidden text-center py-12 text-gray-400 text-base">No matching characters found in this log batch.</div>
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-750 border-b border-gray-700 text-gray-300 text-xs uppercase tracking-wider font-semibold">
+                        <th class="px-6 py-4">Character & Realm</th>
+                        <th class="px-6 py-4">Boss Name</th>
+                        <th class="px-6 py-4">Report Link</th>
+                        <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 transition" onclick="handleSort('starting_stacks')">Starting Stacks <span id="sort-starting_stacks" class="text-indigo-400 ml-1">♢</span></th>
+                        <th class="px-6 py-4 cursor-pointer hover:bg-gray-700 transition" onclick="handleSort('aura_uptime_pct')">Aura Uptime % <span id="sort-aura_uptime_pct" class="text-indigo-400 ml-1">♢</span></th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-gray-700 text-sm"></tbody>
+            </table>
         </div>
     </div>
 
@@ -70,62 +66,34 @@
         async function checkPassword() {
             const input = document.getElementById('passwordInput').value;
             const correctHash = '4afe248e9ea0fac8c12a62e67eeeeafeed36e9dfd1c715e32b41e7a11c6d8898'; 
-
             if (await sha256(input) === correctHash) {
                 document.getElementById('passwordGate').classList.add('hidden');
                 document.getElementById('mainContent').classList.remove('hidden');
-                loadDashboardData(); 
+                loadDashboardData();
             } else {
                 document.getElementById('errorMsg').classList.remove('hidden');
-                document.getElementById('passwordInput').value = '';
             }
         }
 
-        document.getElementById('passwordInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
-
-        // --- Dashboard Logic ---
-        let fullDataset = [];
-        let filteredDataset = [];
-        let currentSortKey = '';
-        let isAscending = false;
+        let fullDataset = [], filteredDataset = [], currentSortKey = '', isAscending = false;
 
         async function loadDashboardData() {
-            try {
-                const response = await fetch('data.json');
-                if (!response.ok) throw new Error("Could not find database targets.");
-                fullDataset = await response.json();
-                filteredDataset = [...fullDataset];
-                renderTableRecords();
-                setupSearchActions();
-            } catch (error) {
-                console.error("Dashboard engine failure:", error);
-                document.getElementById('recordCounter').innerText = "Failed loading data profiles.";
-            }
+            const response = await fetch('data.json');
+            fullDataset = await response.json();
+            filteredDataset = [...fullDataset];
+            renderTableRecords();
         }
 
         function renderTableRecords() {
             const tbody = document.getElementById('tableBody');
-            const noData = document.getElementById('noDataMessage');
-            const counter = document.getElementById('recordCounter');
-            
             tbody.innerHTML = '';
-            counter.innerText = `Showing ${filteredDataset.length} of ${fullDataset.length} entries`;
-            noData.classList.toggle('hidden', filteredDataset.length > 0);
-
             filteredDataset.forEach(row => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-700/50 transition duration-150";
+                tr.className = "hover:bg-gray-700/50 transition";
                 tr.innerHTML = `
-                    <td class="px-6 py-4 font-medium text-white">
-                        <div class="font-semibold">${row.character_name}</div>
-                        <div class="text-xs text-gray-400 mt-0.5">${row.realm}</div>
-                    </td>
-                    <td class="px-6 py-4 text-gray-300 font-medium">${row.boss_name}</td>
-                    <td class="px-6 py-4">
-                        <a href="https://www.warcraftlogs.com/reports/${row.report_code}" target="_blank" class="inline-flex items-center text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/30">
-                            ${row.report_code} 
-                        </a>
-                    </td>
+                    <td class="px-6 py-4"><div class="font-semibold text-white">${row.character_name}</div><div class="text-xs text-gray-400">${row.realm}</div></td>
+                    <td class="px-6 py-4 text-gray-300">${row.boss_name}</td>
+                    <td class="px-6 py-4"><a href="https://www.warcraftlogs.com/reports/${row.report_code}" target="_blank" class="text-indigo-400">${row.report_code}</a></td>
                     <td class="px-6 py-4 text-gray-300 font-mono">${row.starting_stacks}</td>
                     <td class="px-6 py-4 text-amber-400 font-mono font-semibold">${Number(row.aura_uptime_pct).toFixed(2)}%</td>
                 `;
@@ -133,30 +101,14 @@
             });
         }
 
-        function executeSearch() {
-            const query = document.getElementById('searchBar').value.toLowerCase().trim();
-            filteredDataset = query === "" ? [...fullDataset] : fullDataset.filter(i => i.character_name.toLowerCase().includes(query));
-            if (currentSortKey) sortDataset(currentSortKey, false);
-            renderTableRecords();
-        }
-
-        function setupSearchActions() {
-            document.getElementById('findButton').addEventListener('click', executeSearch);
-            document.getElementById('searchBar').addEventListener('keydown', (e) => { if (e.key === 'Enter') executeSearch(); });
-        }
-
         function handleSort(key) {
             isAscending = (currentSortKey === key) ? !isAscending : false;
             currentSortKey = key;
-            sortDataset(key, true);
-        }
-
-        function sortDataset(key, shouldRender) {
             filteredDataset.sort((a, b) => isAscending ? (a[key] - b[key]) : (b[key] - a[key]));
             ['starting_stacks', 'aura_uptime_pct'].forEach(k => {
                 document.getElementById(`sort-${k}`).innerText = (k !== currentSortKey) ? '♢' : (isAscending ? '▲' : '▼');
             });
-            if (shouldRender) renderTableRecords();
+            renderTableRecords();
         }
     </script>
 </body>
